@@ -5,7 +5,7 @@ import { Search, Trash2, BarChart2, Info, FileText, Loader2, FileCode, ExternalL
 // --- CONFIGURATION ---
 const REMOTE_CONFIG = {
   reanalysis: {
-    username: "VicenteBR", 
+    username: "VicenteBR",
     repo: "Boldt-et-al-2022-reanalysis",
     branch: "main",
     folder: "DATA",
@@ -16,13 +16,14 @@ const REMOTE_CONFIG = {
     }
   },
   defense: {
-    username: "VicenteBR", 
+    username: "VicenteBR",
     repo: "Boldt-et-al-2022-reanalysis",
     branch: "main",
     folder: "DATA",
     files: {
-      sense: "/counts_diffexpress/defense_systems/defense_read_counts", 
-      annotation: "/annotation_files/CP102233_padloc.gff3" 
+      sense: "/counts_diffexpress/defense_systems/defense_read_counts",
+      annotation: "/annotation_files/CP102233_padloc.gff3"
+    }
   }
 };
 
@@ -64,7 +65,7 @@ const CustomTooltip = ({ active, payload, label, annotations }) => {
 const App = () => {
   const [fileData, setFileData] = useState({ sense: null, antisense: null });
   const [annotations, setAnnotations] = useState({});
-  const [currentMode, setCurrentMode] = useState('sense'); 
+  const [currentMode, setCurrentMode] = useState('sense');
   const [selectedGenes, setSelectedGenes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -88,7 +89,7 @@ const App = () => {
         let [key, ...rest] = pair.split('=');
         let val = rest.join('=');
         if (key && val) {
-          try { attrs[key.trim()] = decodeURIComponent(val.trim()); } 
+          try { attrs[key.trim()] = decodeURIComponent(val.trim()); }
           catch (e) { attrs[key.trim()] = val.trim(); }
         }
       });
@@ -109,7 +110,7 @@ const App = () => {
       const lines = text.split('\n').filter(line => line.trim() !== '' && !line.startsWith('#'));
       if (lines.length < 2) return null;
       const headers = lines[0].split('\t');
-      if (headers.length < 7) return null; 
+      if (headers.length < 7) return null;
 
       const sampleCols = headers.slice(6);
       const rows = lines.slice(1).map(line => {
@@ -141,8 +142,8 @@ const App = () => {
       });
 
       const conditions = Array.from(new Set(sampleCols.map(s => s.split('_')[0])))
-        .sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
-      
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
       return { raw: log2tpm, rawCounts, conditions, sampleCols, geneList: log2tpm.map(r => r.Geneid) };
     } catch (err) {
       return null;
@@ -154,7 +155,7 @@ const App = () => {
     setLoadStatus(null);
     const config = REMOTE_CONFIG[type];
     const base = `https://raw.githubusercontent.com/${config.username}/${config.repo}/${config.branch}/${config.folder}`.replace(/\/$/, "");
-    
+
     try {
       const fetchF = async (path) => {
         if (!path) return null;
@@ -210,9 +211,9 @@ const App = () => {
   const fullStats = useMemo(() => {
     if (selectedGenes.length === 0) return [];
     const conds = Array.from(new Set([
-        ...(fileData.sense?.conditions || []),
-        ...(fileData.antisense?.conditions || [])
-    ])).sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
+      ...(fileData.sense?.conditions || []),
+      ...(fileData.antisense?.conditions || [])
+    ])).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
     return conds.map(cond => {
       const entry = { condition: cond, genes: {} };
@@ -267,17 +268,17 @@ const App = () => {
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-800">RNA-Seq Browser</h1>
             {listSource && (
-                <div className="flex gap-1 mt-1">
-                    {['sense', 'antisense', 'both'].map(m => (
-                        <button key={m} disabled={m === 'both' ? (!fileData.sense || !fileData.antisense) : !fileData[m]} onClick={() => setCurrentMode(m)} className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all ${currentMode === m ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-400 hover:text-slate-600 disabled:opacity-30'}`}>
-                            {m === 'both' ? 'Compare' : m === 'sense' ? 'Dataset 1' : 'Dataset 2'}
-                        </button>
-                    ))}
-                </div>
+              <div className="flex gap-1 mt-1">
+                {['sense', 'antisense', 'both'].map(m => (
+                  <button key={m} disabled={m === 'both' ? (!fileData.sense || !fileData.antisense) : !fileData[m]} onClick={() => setCurrentMode(m)} className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all ${currentMode === m ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-400 hover:text-slate-600 disabled:opacity-30'}`}>
+                    {m === 'both' ? 'Compare' : m === 'sense' ? 'Dataset 1' : 'Dataset 2'}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {!listSource && !isProcessing && (
             <div className="flex gap-2">
@@ -303,7 +304,7 @@ const App = () => {
           </div>
 
           {listSource && (
-            <button onClick={() => { setFileData({sense:null, antisense:null}); setAnnotations({}); setSelectedGenes([]); setIsPrecomputed(false); setLoadStatus(null); }} className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors ml-2" title="Reset Browser"><Trash2 size={18} /></button>
+            <button onClick={() => { setFileData({ sense: null, antisense: null }); setAnnotations({}); setSelectedGenes([]); setIsPrecomputed(false); setLoadStatus(null); }} className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors ml-2" title="Reset Browser"><Trash2 size={18} /></button>
           )}
         </div>
       </header>
@@ -320,7 +321,7 @@ const App = () => {
                 <span>Sort:</span>
                 <div className="flex gap-1">
                   {['id', 'name', 'expression'].map(k => (
-                    <button key={k} onClick={() => setSortConfig(p => ({key: k, direction: p.key===k && p.direction==='asc'?'desc':'asc'}))} className={`px-2 py-1 rounded transition-colors ${sortConfig.key===k?'bg-blue-600 text-white':'bg-slate-100 hover:bg-slate-200'}`}>{k}</button>
+                    <button key={k} onClick={() => setSortConfig(p => ({ key: k, direction: p.key === k && p.direction === 'asc' ? 'desc' : 'asc' }))} className={`px-2 py-1 rounded transition-colors ${sortConfig.key === k ? 'bg-blue-600 text-white' : 'bg-slate-100 hover:bg-slate-200'}`}>{k}</button>
                   ))}
                 </div>
               </div>
@@ -329,7 +330,7 @@ const App = () => {
 
           <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
             {filteredGenes.map(gene => (
-              <button key={gene} onClick={() => setSelectedGenes(prev => prev.includes(gene) ? prev.filter(g=>g!==gene) : prev.length<7 ? [...prev, gene] : prev)} className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 transition-all ${selectedGenes.includes(gene) ? 'bg-blue-50 border-blue-200 shadow-sm' : 'hover:bg-slate-50 border-transparent'} border`}>
+              <button key={gene} onClick={() => setSelectedGenes(prev => prev.includes(gene) ? prev.filter(g => g !== gene) : prev.length < 7 ? [...prev, gene] : prev)} className={`w-full text-left px-3 py-2 rounded-lg text-sm mb-1 transition-all ${selectedGenes.includes(gene) ? 'bg-blue-50 border-blue-200 shadow-sm' : 'hover:bg-slate-50 border-transparent'} border`}>
                 <div className="flex justify-between items-center">
                   <span className={`font-mono text-xs font-bold ${selectedGenes.includes(gene) ? 'text-blue-700' : 'text-slate-700'}`}>{gene}</span>
                   {annotations[gene]?.geneName && <span className="text-[10px] bg-slate-100 px-1 rounded text-slate-500">{annotations[gene].geneName}</span>}
@@ -338,22 +339,22 @@ const App = () => {
               </button>
             ))}
           </div>
-          
+
           {selectedGenes.length > 0 && (
-              <div className="p-3 bg-slate-50 border-t border-slate-200">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Selected ({selectedGenes.length})</span>
-                    <button onClick={() => setSelectedGenes([])} className="text-[10px] font-bold text-red-500 hover:underline">Clear All</button>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedGenes.map((g, i) => (
-                        <div key={g} className="bg-white border border-slate-200 px-2 py-0.5 rounded text-[10px] flex items-center gap-1 shadow-xs">
-                            <div className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: colors[i % colors.length]}} />
-                            <span className="max-w-[80px] truncate font-medium">{g}</span>
-                        </div>
-                    ))}
-                  </div>
+            <div className="p-3 bg-slate-50 border-t border-slate-200">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Selected ({selectedGenes.length})</span>
+                <button onClick={() => setSelectedGenes([])} className="text-[10px] font-bold text-red-500 hover:underline">Clear All</button>
               </div>
+              <div className="flex flex-wrap gap-1">
+                {selectedGenes.map((g, i) => (
+                  <div key={g} className="bg-white border border-slate-200 px-2 py-0.5 rounded text-[10px] flex items-center gap-1 shadow-xs">
+                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors[i % colors.length] }} />
+                    <span className="max-w-[80px] truncate font-medium">{g}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
@@ -362,32 +363,32 @@ const App = () => {
             <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
               <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-sm">
                 <div className="flex flex-col items-center text-center mb-10">
-                    <Database size={48} className="text-indigo-600 mb-4 opacity-40" />
-                    <h2 className="text-3xl font-black text-slate-800 tracking-tight">Getting Started</h2>
-                    <p className="text-slate-500 max-w-lg mt-2">Load precomputed datasets or upload your own files below to begin visualization.</p>
+                  <Database size={48} className="text-indigo-600 mb-4 opacity-40" />
+                  <h2 className="text-3xl font-black text-slate-800 tracking-tight">Getting Started</h2>
+                  <p className="text-slate-500 max-w-lg mt-2">Load precomputed datasets or upload your own files below to begin visualization.</p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                   <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100">
-                    <h3 className="font-bold text-blue-900 flex items-center gap-2 mb-3"><FileText size={20}/> Count File (.tsv)</h3>
+                    <h3 className="font-bold text-blue-900 flex items-center gap-2 mb-3"><FileText size={20} /> Count File (.tsv)</h3>
                     <div className="text-[11px] font-mono bg-white p-3 rounded-xl border border-blue-100 text-blue-800 mb-4 overflow-x-auto whitespace-nowrap">
-                        Geneid Chr Start End Strand Length WT_1 WT_2 ...<br/>
-                        geneA  1   100   500 +      400    120  145  ...
+                      Geneid Chr Start End Strand Length WT_1 WT_2 ...<br />
+                      geneA  1   100   500 +      400    120  145  ...
                     </div>
                     <ul className="text-xs text-blue-700 space-y-2">
-                        <li>• First 6 columns must match the example.</li>
-                        <li>• Sample names should be <b>Condition_Replicate</b>.</li>
-                        <li>• Values should be raw integers.</li>
+                      <li>• First 6 columns must match the example.</li>
+                      <li>• Sample names should be <b>Condition_Replicate</b>.</li>
+                      <li>• Values should be raw integers.</li>
                     </ul>
                   </div>
                   <div className="p-6 bg-green-50/50 rounded-3xl border border-green-100">
-                    <h3 className="font-bold text-green-900 flex items-center gap-2 mb-3"><FileCode size={20}/> Annotation (.gff3)</h3>
+                    <h3 className="font-bold text-green-900 flex items-center gap-2 mb-3"><FileCode size={20} /> Annotation (.gff3)</h3>
                     <div className="text-[11px] font-mono bg-white p-3 rounded-xl border border-green-100 text-green-800 mb-4 overflow-x-auto whitespace-nowrap">
-                        ... CDS ... locus_tag=geneA;product=MyProtein;Name=genA
+                      ... CDS ... locus_tag=geneA;product=MyProtein;Name=genA
                     </div>
                     <ul className="text-xs text-green-700 space-y-2">
-                        <li>• ID must match the <b>Geneid</b> in the count file.</li>
-                        <li>• Checks <b>locus_tag</b>, <b>ID</b>, and <b>product</b> tags.</li>
+                      <li>• ID must match the <b>Geneid</b> in the count file.</li>
+                      <li>• Checks <b>locus_tag</b>, <b>ID</b>, and <b>product</b> tags.</li>
                     </ul>
                   </div>
                 </div>
@@ -396,7 +397,7 @@ const App = () => {
           ) : selectedGenes.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-300">
               <HelpCircle size={48} className="mb-4 opacity-10" />
-              <p className="font-bold text-slate-400 uppercase tracking-widest text-sm text-center">Data Ready<br/><span className="text-[10px] font-normal lowercase tracking-normal">Click genes on the sidebar to plot</span></p>
+              <p className="font-bold text-slate-400 uppercase tracking-widest text-sm text-center">Data Ready<br /><span className="text-[10px] font-normal lowercase tracking-normal">Click genes on the sidebar to plot</span></p>
             </div>
           ) : (
             <div className="max-w-5xl mx-auto space-y-8 pb-12 animate-in fade-in duration-500">
@@ -409,32 +410,32 @@ const App = () => {
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-                    {selectedGenes.map((g, i) => (
-                        <div key={g} className="text-xs p-3 rounded-xl border border-slate-200 bg-slate-50/30">
-                            <div className="flex items-center gap-2 mb-1">
-                                <div className="w-2 h-2 rounded-full" style={{backgroundColor: colors[i % colors.length]}} />
-                                <span className="font-bold text-slate-700">{g}</span>
-                                <a href={`https://www.ncbi.nlm.nih.gov/gene/?term=${g}`} target="_blank" className="ml-auto text-slate-300 hover:text-indigo-500 transition-colors"><ExternalLink size={12}/></a>
-                            </div>
-                            <p className="text-[10px] text-slate-400 line-clamp-2 italic">{annotations[g]?.product || 'No annotation'}</p>
-                        </div>
-                    ))}
+                  {selectedGenes.map((g, i) => (
+                    <div key={g} className="text-xs p-3 rounded-xl border border-slate-200 bg-slate-50/30">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[i % colors.length] }} />
+                        <span className="font-bold text-slate-700">{g}</span>
+                        <a href={`https://www.ncbi.nlm.nih.gov/gene/?term=${g}`} target="_blank" className="ml-auto text-slate-300 hover:text-indigo-500 transition-colors"><ExternalLink size={12} /></a>
+                      </div>
+                      <p className="text-[10px] text-slate-400 line-clamp-2 italic">{annotations[g]?.product || 'No annotation'}</p>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart key={currentMode} data={fullStats} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis dataKey="condition" axisLine={false} tickLine={false} tick={{fill:'#64748b', fontSize:11, fontWeight:600}} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{fill:'#64748b', fontSize:11}} width={35} />
+                      <XAxis dataKey="condition" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11, fontWeight: 600 }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 11 }} width={35} />
                       <Tooltip content={<CustomTooltip annotations={annotations} />} />
                       {selectedGenes.flatMap((gene, i) => {
                         const c = colors[i % colors.length];
                         const keys = currentMode === 'both' ? [`${gene}_S`, `${gene}_A`] : [gene];
                         return keys.map((k, j) => (
                           <React.Fragment key={`${k}_${currentMode}`}>
-                            <Area dataKey={`${k}_range`} stroke="none" fill={c} fillOpacity={j===0?0.15:0.05} connectNulls />
-                            <Line dataKey={`${k}_mean`} name={currentMode === 'both' ? (j === 0 ? `${gene} (D1)` : `${gene} (D2)`) : gene} stroke={c} strokeWidth={j===0?3:2} strokeDasharray={j===1?"5 5":""} dot={{r:3, strokeWidth: 2, fill: j===0?c:'#fff'}} connectNulls />
+                            <Area dataKey={`${k}_range`} stroke="none" fill={c} fillOpacity={j === 0 ? 0.15 : 0.05} connectNulls />
+                            <Line dataKey={`${k}_mean`} name={currentMode === 'both' ? (j === 0 ? `${gene} (D1)` : `${gene} (D2)`) : gene} stroke={c} strokeWidth={j === 0 ? 3 : 2} strokeDasharray={j === 1 ? "5 5" : ""} dot={{ r: 3, strokeWidth: 2, fill: j === 0 ? c : '#fff' }} connectNulls />
                           </React.Fragment>
                         ));
                       })}
@@ -445,8 +446,8 @@ const App = () => {
 
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                    <Table size={18} className="text-slate-400"/>
-                    <h3 className="font-bold text-slate-700 text-sm">Quantification Table</h3>
+                  <Table size={18} className="text-slate-400" />
+                  <h3 className="font-bold text-slate-700 text-sm">Quantification Table</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
@@ -463,7 +464,7 @@ const App = () => {
                             <tr className="border-b border-slate-50 group hover:bg-blue-50/20 transition-colors">
                               <td className="px-4 py-2 border-r border-slate-100 bg-slate-50/20">
                                 <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full" style={{backgroundColor: colors[idx % colors.length]}} />
+                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[idx % colors.length] }} />
                                   <span className="font-bold text-slate-800">{gene}</span>
                                   <span className="text-[9px] bg-blue-100 text-blue-700 px-1 rounded font-black">D1</span>
                                 </div>
@@ -499,11 +500,11 @@ const App = () => {
                   </table>
                 </div>
                 <div className="p-4 bg-slate-50 border-t border-slate-200 text-[10px] text-slate-500">
-                    <p className="font-bold mb-1 uppercase tracking-wider text-slate-400">Source Information</p>
-                    <div className="flex gap-6">
-                        <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-blue-400" /> <b>D1:</b> {fileData.sense?.sampleCols?.[0] || 'Manual Upload'}</span>
-                        <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-purple-400" /> <b>D2:</b> {fileData.antisense?.sampleCols?.[0] || 'Manual Upload'}</span>
-                    </div>
+                  <p className="font-bold mb-1 uppercase tracking-wider text-slate-400">Source Information</p>
+                  <div className="flex gap-6">
+                    <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-blue-400" /> <b>D1:</b> {fileData.sense?.sampleCols?.[0] || 'Manual Upload'}</span>
+                    <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-purple-400" /> <b>D2:</b> {fileData.antisense?.sampleCols?.[0] || 'Manual Upload'}</span>
+                  </div>
                 </div>
               </div>
             </div>
