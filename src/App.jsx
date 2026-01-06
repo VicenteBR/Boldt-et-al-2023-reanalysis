@@ -45,7 +45,9 @@ const CustomTooltip = ({ active, payload, label, annotations }) => {
           <div key={geneId}>
             <div className="flex items-center gap-2 mb-1">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: items[0].color }} />
-              <p className="text-sm font-bold text-slate-800">{geneId} {annotations[geneId]?.geneName ? `(${annotations[geneId].geneName})` : ''}</p>
+              <p className="text-sm font-bold text-slate-800">
+                {annotations[geneId]?.geneName || geneId}
+              </p>
             </div>
             <div className="space-y-1 pl-4">
               {items.map((item, idx) => (
@@ -94,23 +96,34 @@ const App = () => {
         }
       });
 
-      // Padloc specific extraction: locus_tag is often the primary ID in count files
-      const id = attrs['locus_tag'] || attrs['ID'];
+      // Padloc logic for Defense Systems
+      const id_attr = attrs['ID'];
+      const locus = attrs['locus_tag'];
+      const name = attrs['Name'] || attrs['gene'];
       
-      // Extract Defense System from 'Note' field (e.g., Note=system:PD-T4-6)
       let system = null;
       if (attrs['Note'] && attrs['Note'].startsWith('system:')) {
         system = attrs['Note'].replace('system:', '');
       }
 
-      if (id) {
-        map[id] = {
-          product: attrs['product'] || attrs['description'] || "Hypothetical protein",
-          geneName: attrs['Name'] || attrs['gene'] || null,
-          system: system,
-          locus: attrs['locus_tag'] || null
-        };
-      }
+      // Smarter fallback for product/description
+      const product = attrs['product'] || 
+                      attrs['description'] || 
+                      (system ? `Defense system: ${system}` : null) || 
+                      attrs['Note'] || 
+                      "Hypothetical protein";
+
+      const entry = {
+        product,
+        geneName: name,
+        system: system,
+        locus: locus || id_attr
+      };
+
+      // Map all possible identifiers to the same metadata object
+      if (id_attr) map[id_attr] = entry;
+      if (locus) map[locus] = entry;
+      if (name) map[name] = entry;
     });
     return map;
   };
@@ -452,7 +465,9 @@ const App = () => {
                                     </div>
                                     <a href={`https://www.ncbi.nlm.nih.gov/gene/?term=${g}`} target="_blank" className="ml-auto text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-all"><ExternalLink size={14}/></a>
                                 </div>
-                                <p className="text-[10px] text-slate-400 leading-relaxed italic line-clamp-2">{ann?.product || 'No descriptive annotation available'}</p>
+                                <p className="text-[10px] text-slate-500 leading-relaxed italic line-clamp-2">
+                                  {ann?.product || 'No descriptive annotation available'}
+                                </p>
                             </div>
                         );
                     })}
@@ -469,7 +484,7 @@ const App = () => {
                         const c = colors[i % colors.length];
                         const keys = currentMode === 'both' ? [`${gene}_S`, `${gene}_A`] : [gene];
                         return keys.map((k, j) => (
-                          <React.Fragment key={`${k}_${currentMode}`}>
+                          <React.Fragment key={`${k}_${currentMode}_${j}`}>
                             <Area dataKey={`${k}_range`} stroke="none" fill={c} fillOpacity={j===0?0.15:0.05} connectNulls />
                             <Line dataKey={`${k}_mean`} name={currentMode === 'both' ? (j === 0 ? `${gene} (D1)` : `${gene} (D2)`) : gene} stroke={c} strokeWidth={j===0?3:2} strokeDasharray={j===1?"5 5":""} dot={{r:3, strokeWidth: 2, fill: j===0?c:'#fff'}} connectNulls />
                           </React.Fragment>
@@ -501,7 +516,7 @@ const App = () => {
                               <td className="px-4 py-2 border-r border-slate-100 bg-slate-50/20">
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 rounded-full" style={{backgroundColor: colors[idx % colors.length]}} />
-                                  <span className="font-bold text-slate-800">{gene}</span>
+                                  <span className="font-bold text-slate-800">{annotations[gene]?.geneName || gene}</span>
                                   <span className="text-[9px] bg-blue-100 text-blue-700 px-1 rounded font-black">D1</span>
                                 </div>
                               </td>
@@ -518,7 +533,7 @@ const App = () => {
                               <td className="px-4 py-2 border-r border-slate-100 bg-slate-50/20">
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 rounded-full bg-slate-300" />
-                                  <span className="font-bold text-slate-800">{gene}</span>
+                                  <span className="font-bold text-slate-800">{annotations[gene]?.geneName || gene}</span>
                                   <span className="text-[9px] bg-purple-100 text-purple-700 px-1 rounded font-black">D2</span>
                                 </div>
                               </td>
