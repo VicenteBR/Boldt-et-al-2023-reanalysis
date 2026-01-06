@@ -30,38 +30,52 @@ const REMOTE_CONFIG = {
 const CustomTooltip = ({ active, payload, label, annotations }) => {
   if (!active || !payload || !payload.length) return null;
 
-  const grouped = {};
-  payload.forEach(item => {
-    const geneId = item.name.split(' (')[0];
-    if (!grouped[geneId]) grouped[geneId] = [];
-    grouped[geneId].push(item);
-  });
+  try {
+    const grouped = {};
+    payload.forEach(item => {
+      if (!item || !item.name) return;
+      const geneId = item.name.split(' (')[0];
+      if (!grouped[geneId]) grouped[geneId] = [];
+      grouped[geneId].push(item);
+    });
 
-  return (
-    <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 min-w-[200px]">
-      <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 border-b pb-2">{label}</p>
-      <div className="space-y-4">
-        {Object.entries(grouped).map(([geneId, items]) => (
-          <div key={geneId}>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: items[0].color }} />
-              <p className="text-sm font-bold text-slate-800">
-                {annotations[geneId]?.geneName || geneId}
-              </p>
-            </div>
-            <div className="space-y-1 pl-4">
-              {items.map((item, idx) => (
-                <p key={idx} className="text-[11px] font-medium text-slate-500 flex justify-between gap-4">
-                  <span>{item.name.includes('D1') || item.name.includes('Sense') ? 'Dataset 1' : 'Dataset 2'}:</span>
-                  <span className="font-mono font-bold text-slate-700">{item.value.toFixed(2)}</span>
-                </p>
-              ))}
-            </div>
-          </div>
-        ))}
+    return (
+      <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 min-w-[220px] z-50">
+        <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3 border-b pb-2">{label || 'Unknown Timepoint'}</p>
+        <div className="space-y-4">
+          {Object.entries(grouped).map(([geneId, items]) => {
+            const ann = annotations?.[geneId];
+            return (
+              <div key={geneId}>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: items[0]?.color || '#cbd5e1' }} />
+                  <p className="text-sm font-bold text-slate-800">
+                    {ann?.geneName || geneId}
+                  </p>
+                </div>
+                <div className="space-y-1 pl-4">
+                  {items.map((item, idx) => {
+                    const itemName = item?.name || "";
+                    const isD1 = itemName.includes('D1') || itemName.includes('Sense') || (!itemName.includes('D2') && !itemName.includes('Antisense'));
+                    return (
+                      <div key={idx} className="text-[11px] font-medium text-slate-500 flex justify-between gap-4">
+                        <span>{isD1 ? 'Dataset 1' : 'Dataset 2'}:</span>
+                        <span className="font-mono font-bold text-slate-700">
+                          {typeof item?.value === 'number' && !isNaN(item.value) ? item.value.toFixed(2) : 'N/A'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
-  );
+    );
+  } catch (err) {
+    return null; 
+  }
 };
 
 const App = () => {
@@ -96,31 +110,15 @@ const App = () => {
         }
       });
 
-      // Padloc logic for Defense Systems
       const id_attr = attrs['ID'];
       const locus = attrs['locus_tag'];
       const name = attrs['Name'] || attrs['gene'];
-      
       let system = null;
       if (attrs['Note'] && attrs['Note'].startsWith('system:')) {
         system = attrs['Note'].replace('system:', '');
       }
-
-      // Smarter fallback for product/description
-      const product = attrs['product'] || 
-                      attrs['description'] || 
-                      (system ? `Defense system: ${system}` : null) || 
-                      attrs['Note'] || 
-                      "Hypothetical protein";
-
-      const entry = {
-        product,
-        geneName: name,
-        system: system,
-        locus: locus || id_attr
-      };
-
-      // Map all possible identifiers to the same metadata object
+      const product = attrs['product'] || attrs['description'] || (system ? `Defense system: ${system}` : null) || attrs['Note'] || "Hypothetical protein";
+      const entry = { product, geneName: name, system: system, locus: locus || id_attr };
       if (id_attr) map[id_attr] = entry;
       if (locus) map[locus] = entry;
       if (name) map[name] = entry;
@@ -135,7 +133,6 @@ const App = () => {
       if (lines.length < 2) return null;
       const headers = lines[0].split('\t');
       if (headers.length < 7) return null; 
-
       const sampleCols = headers.slice(6);
       const rows = lines.slice(1).map(line => {
         const parts = line.split('\t');
@@ -145,18 +142,15 @@ const App = () => {
           counts: parts.slice(6).map(val => parseFloat(val) || 0)
         };
       });
-
       const rawCounts = rows.map(row => {
         const entry = { Geneid: row.Geneid };
         sampleCols.forEach((s, i) => { entry[s] = row.counts[i]; });
         return entry;
       });
-
       const rpkMatrix = rows.map(row => ({
         Geneid: row.Geneid,
         rpk: row.counts.map(c => c / (row.Length / 1000 || 1))
       }));
-
       const sampleTotals = sampleCols.map((_, i) => rpkMatrix.reduce((sum, row) => sum + row.rpk[i], 0) / 1000000);
       const log2tpm = rpkMatrix.map((row, idx) => {
         const tpmValues = row.rpk.map((val, i) => Math.log2((val / (sampleTotals[i] || 1)) + 1));
@@ -164,14 +158,10 @@ const App = () => {
         sampleCols.forEach((s, i) => { entry[s] = tpmValues[i]; });
         return entry;
       });
-
       const conditions = Array.from(new Set(sampleCols.map(s => s.split('_')[0])))
         .sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
-      
       return { raw: log2tpm, rawCounts, conditions, sampleCols, geneList: log2tpm.map(r => r.Geneid) };
-    } catch (err) {
-      return null;
-    }
+    } catch (err) { return null; }
   };
 
   const loadDataFromRemote = async (type) => {
@@ -188,28 +178,21 @@ const App = () => {
         if (!res.ok) throw new Error(`${path} not found`);
         return res.text();
       };
-
       const [sTxt, aTxt, gTxt] = await Promise.all([
         fetchF(config.files.sense),
         fetchF(config.files.antisense),
         fetchF(config.files.annotation)
       ]);
-
       const sData = processData(sTxt);
       const aData = processData(aTxt);
       const ann = processGFF(gTxt);
-
       setFileData({ sense: sData, antisense: aData });
       setAnnotations(ann);
       setSelectedGenes([]);
       setIsPrecomputed(true);
       setCurrentMode(sData && aData ? 'both' : (sData ? 'sense' : 'antisense'));
       setLoadStatus({ type: 'info', msg: `${type === 'reanalysis' ? 'Full Reanalysis' : 'Defense Systems'} loaded.` });
-    } catch (err) {
-      setLoadStatus({ type: 'error', msg: err.message });
-    } finally {
-      setIsProcessing(false);
-    }
+    } catch (err) { setLoadStatus({ type: 'error', msg: err.message }); } finally { setIsProcessing(false); }
   };
 
   const handleFileUpload = (event, mode) => {
@@ -249,14 +232,24 @@ const App = () => {
           const countRow = dataObj?.rawCounts.find(r => r.Geneid === geneId);
           if (tpmRow && countRow) {
             const relevantSamples = dataObj.sampleCols.filter(s => s.startsWith(cond));
-            const tpmVals = relevantSamples.map(s => tpmRow[s]);
-            const countVals = relevantSamples.map(s => countRow[s]);
-            const tpmMean = tpmVals.reduce((a, b) => a + b, 0) / tpmVals.length;
-            const tpmStd = Math.sqrt(tpmVals.map(x => Math.pow(x - tpmMean, 2)).reduce((a, b) => a + b, 0) / tpmVals.length);
-            entry.genes[geneId][m] = { tpmMean, tpmStd, countMean: countVals.reduce((a, b) => a + b, 0) / countVals.length };
-            const key = currentMode === 'both' ? `${geneId}_${m[0].toUpperCase()}` : geneId;
-            entry[`${key}_mean`] = tpmMean;
-            entry[`${key}_range`] = [Math.max(0, tpmMean - tpmStd), tpmMean + tpmStd];
+            const tpmVals = relevantSamples.map(s => tpmRow[s]).filter(v => typeof v === 'number' && !isNaN(v));
+            const countVals = relevantSamples.map(s => countRow[s]).filter(v => typeof v === 'number' && !isNaN(v));
+            
+            if (tpmVals.length > 0) {
+              const tpmMean = tpmVals.reduce((a, b) => a + b, 0) / tpmVals.length;
+              const tpmStd = Math.sqrt(tpmVals.map(x => Math.pow(x - tpmMean, 2)).reduce((a, b) => a + b, 0) / tpmVals.length);
+              entry.genes[geneId][m] = { tpmMean, tpmStd, countMean: countVals.length > 0 ? countVals.reduce((a, b) => a + b, 0) / countVals.length : 0 };
+              
+              // FIX: Ensure iterating over strands doesn't overwrite shared keys in Dataset 1 vs Dataset 2 modes
+              if (currentMode === 'both') {
+                const suffix = m === 'sense' ? 'S' : 'A';
+                entry[`${geneId}_${suffix}_mean`] = tpmMean;
+                entry[`${geneId}_${suffix}_range`] = [Math.max(0, tpmMean - tpmStd), tpmMean + tpmStd];
+              } else if (currentMode === m) {
+                entry[`${geneId}_mean`] = tpmMean;
+                entry[`${geneId}_range`] = [Math.max(0, tpmMean - tpmStd), tpmMean + tpmStd];
+              }
+            }
           }
         });
       });
@@ -305,10 +298,10 @@ const App = () => {
         
         <div className="flex items-center gap-3">
           {loadStatus && (
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold ${loadStatus.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold animate-in fade-in slide-in-from-top-1 ${loadStatus.type === 'error' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-green-50 text-green-600 border border-green-100'}`}>
               {loadStatus.type === 'error' ? <AlertCircle size={14} /> : <Info size={14} />}
               {loadStatus.msg}
-              <button onClick={() => setLoadStatus(null)} className="ml-1 opacity-50"><X size={12} /></button>
+              <button onClick={() => setLoadStatus(null)} className="ml-1 opacity-50 hover:opacity-100"><X size={12} /></button>
             </div>
           )}
 
@@ -385,7 +378,7 @@ const App = () => {
                     {selectedGenes.map((g, i) => (
                         <div key={g} className="bg-white border border-slate-200 px-2 py-0.5 rounded text-[10px] flex items-center gap-1 shadow-xs">
                             <div className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: colors[i % colors.length]}} />
-                            <span className="max-w-[80px] truncate font-medium">{g}</span>
+                            <span className="max-w-[80px] truncate font-medium">{annotations[g]?.geneName || g}</span>
                         </div>
                     ))}
                   </div>
@@ -402,7 +395,6 @@ const App = () => {
                     <h2 className="text-3xl font-black text-slate-800 tracking-tight">Getting Started</h2>
                     <p className="text-slate-500 max-w-lg mt-2">Load precomputed datasets or upload your own files below to begin visualization.</p>
                 </div>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                   <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100">
                     <h3 className="font-bold text-blue-900 flex items-center gap-2 mb-3"><FileText size={20}/> Count File (.tsv)</h3>
@@ -410,21 +402,12 @@ const App = () => {
                         Geneid Chr Start End Strand Length WT_1 WT_2 ...<br/>
                         geneA  1   100   500 +      400    120  145  ...
                     </div>
-                    <ul className="text-xs text-blue-700 space-y-2">
-                        <li>• First 6 columns must match the example.</li>
-                        <li>• Sample names should be <b>Condition_Replicate</b>.</li>
-                        <li>• Values should be raw integers.</li>
-                    </ul>
                   </div>
                   <div className="p-6 bg-green-50/50 rounded-3xl border border-green-100">
                     <h3 className="font-bold text-green-900 flex items-center gap-2 mb-3"><FileCode size={20}/> Annotation (.gff3)</h3>
                     <div className="text-[11px] font-mono bg-white p-3 rounded-xl border border-green-100 text-green-800 mb-4 overflow-x-auto whitespace-nowrap">
                         ... CDS ... locus_tag=geneA;product=MyProtein;Name=genA
                     </div>
-                    <ul className="text-xs text-green-700 space-y-2">
-                        <li>• ID must match the <b>Geneid</b> in the count file.</li>
-                        <li>• Checks <b>locus_tag</b>, <b>ID</b>, and <b>product</b> tags.</li>
-                    </ul>
                   </div>
                 </div>
               </div>
@@ -443,49 +426,45 @@ const App = () => {
                     <p className="text-xs text-slate-400 mt-1 font-medium">Metric: <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">log₂ (TPM + 1)</span></p>
                   </div>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
                     {selectedGenes.map((g, i) => {
                         const ann = annotations[g];
                         return (
-                            <div key={g} className="relative text-xs p-4 rounded-3xl border border-slate-200 bg-slate-50/30 hover:border-indigo-200 transition-all hover:bg-white group">
+                            <div key={g} className="relative text-xs p-4 rounded-3xl border border-slate-200 bg-slate-50/30 hover:border-indigo-200 transition-all hover:bg-white group shadow-xs">
                                 <div className="flex items-center gap-3 mb-3">
                                     <div className="w-3 h-3 rounded-full shadow-sm" style={{backgroundColor: colors[i % colors.length]}} />
-                                    <div>
+                                    <div className="overflow-hidden">
                                         <div className="flex items-center gap-2">
-                                            <span className="font-black text-slate-800 text-sm tracking-tight">{ann?.geneName || g}</span>
-                                            {ann?.locus && ann?.locus !== g && <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-1 rounded">{ann.locus}</span>}
+                                            <span className="font-black text-slate-800 text-sm tracking-tight truncate">{ann?.geneName || g}</span>
+                                            {ann?.locus && ann?.locus !== g && <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-1 rounded flex-shrink-0">{ann.locus}</span>}
                                         </div>
                                         {ann?.system && (
                                             <div className="flex items-center gap-1 mt-1">
                                                 <ShieldCheck size={10} className="text-emerald-500" />
-                                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">{ann.system}</span>
+                                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter truncate">{ann.system}</span>
                                             </div>
                                         )}
                                     </div>
-                                    <a href={`https://www.ncbi.nlm.nih.gov/gene/?term=${g}`} target="_blank" className="ml-auto text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-all"><ExternalLink size={14}/></a>
+                                    <a href={`https://www.ncbi.nlm.nih.gov/gene/?term=${g}`} target="_blank" className="ml-auto text-slate-300 hover:text-indigo-500 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"><ExternalLink size={14}/></a>
                                 </div>
-                                <p className="text-[10px] text-slate-500 leading-relaxed italic line-clamp-2">
-                                  {ann?.product || 'No descriptive annotation available'}
-                                </p>
+                                <p className="text-[10px] text-slate-500 leading-relaxed italic line-clamp-2">{ann?.product || 'No descriptive annotation available'}</p>
                             </div>
                         );
                     })}
                 </div>
-
-                <div className="h-[400px]">
+                <div className="h-[400px] relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart key={currentMode} data={fullStats} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="condition" axisLine={false} tickLine={false} tick={{fill:'#64748b', fontSize:11, fontWeight:600}} dy={10} />
                       <YAxis axisLine={false} tickLine={false} tick={{fill:'#64748b', fontSize:11}} width={35} />
-                      <Tooltip content={<CustomTooltip annotations={annotations} />} />
+                      <Tooltip content={<CustomTooltip annotations={annotations} />} isAnimationActive={false} />
                       {selectedGenes.flatMap((gene, i) => {
                         const c = colors[i % colors.length];
                         const keys = currentMode === 'both' ? [`${gene}_S`, `${gene}_A`] : [gene];
                         return keys.map((k, j) => (
                           <React.Fragment key={`${k}_${currentMode}_${j}`}>
-                            <Area dataKey={`${k}_range`} stroke="none" fill={c} fillOpacity={j===0?0.15:0.05} connectNulls />
+                            <Area dataKey={`${k}_range`} stroke="none" fill={c} fillOpacity={j===0?0.15:0.05} connectNulls activeDot={false}/>
                             <Line dataKey={`${k}_mean`} name={currentMode === 'both' ? (j === 0 ? `${gene} (D1)` : `${gene} (D2)`) : gene} stroke={c} strokeWidth={j===0?3:2} strokeDasharray={j===1?"5 5":""} dot={{r:3, strokeWidth: 2, fill: j===0?c:'#fff'}} connectNulls />
                           </React.Fragment>
                         ));
@@ -494,55 +473,26 @@ const App = () => {
                   </ResponsiveContainer>
                 </div>
               </div>
-
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
-                    <Table size={18} className="text-slate-400"/>
-                    <h3 className="font-bold text-slate-700 text-sm">Quantification Table</h3>
-                </div>
+                <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center gap-2"><Table size={18} className="text-slate-400"/><h3 className="font-bold text-slate-700 text-sm">Quantification Table</h3></div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-500 border-b border-slate-100">
-                        <th className="px-4 py-3 font-bold border-r border-slate-100 min-w-[150px]">Gene / Cond</th>
-                        {fullStats.map(s => <th key={s.condition} className="px-4 py-3 font-bold text-center border-r border-slate-100 last:border-0">{s.condition}</th>)}
-                      </tr>
+                      <tr className="bg-slate-50 text-slate-500 border-b border-slate-100"><th className="px-4 py-3 font-bold border-r border-slate-100 min-w-[150px]">Gene / Cond</th>{fullStats.map(s => <th key={s.condition} className="px-4 py-3 font-bold text-center border-r border-slate-100 last:border-0">{s.condition}</th>)}</tr>
                     </thead>
                     <tbody>
                       {selectedGenes.map((gene, idx) => (
                         <React.Fragment key={gene}>
                           {(currentMode === 'sense' || currentMode === 'both') && (
                             <tr className="border-b border-slate-50 group hover:bg-blue-50/20 transition-colors">
-                              <td className="px-4 py-2 border-r border-slate-100 bg-slate-50/20">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full" style={{backgroundColor: colors[idx % colors.length]}} />
-                                  <span className="font-bold text-slate-800">{annotations[gene]?.geneName || gene}</span>
-                                  <span className="text-[9px] bg-blue-100 text-blue-700 px-1 rounded font-black">D1</span>
-                                </div>
-                              </td>
-                              {fullStats.map(s => (
-                                <td key={s.condition} className="px-4 py-2 text-center border-r border-slate-100 last:border-0">
-                                  <span className="font-mono text-slate-700 font-bold">{s.genes[gene]?.sense?.tpmMean.toFixed(2)}</span>
-                                  <div className="text-[9px] text-slate-400">Reads: {Math.round(s.genes[gene]?.sense?.countMean || 0)}</div>
-                                </td>
-                              ))}
+                              <td className="px-4 py-2 border-r border-slate-100 bg-slate-50/20"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{backgroundColor: colors[idx % colors.length]}} /><span className="font-bold text-slate-800 truncate max-w-[100px]">{annotations[gene]?.geneName || gene}</span><span className="text-[9px] bg-blue-100 text-blue-700 px-1 rounded font-black">D1</span></div></td>
+                              {fullStats.map(s => <td key={s.condition} className="px-4 py-2 text-center border-r border-slate-100 last:border-0"><span className="font-mono text-slate-700 font-bold">{s.genes[gene]?.sense?.tpmMean.toFixed(2) || '0.00'}</span><div className="text-[9px] text-slate-400">Reads: {Math.round(s.genes[gene]?.sense?.countMean || 0)}</div></td>)}
                             </tr>
                           )}
                           {(currentMode === 'antisense' || currentMode === 'both') && (
                             <tr className="border-b border-slate-100 last:border-0 hover:bg-purple-50/20 transition-colors">
-                              <td className="px-4 py-2 border-r border-slate-100 bg-slate-50/20">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full bg-slate-300" />
-                                  <span className="font-bold text-slate-800">{annotations[gene]?.geneName || gene}</span>
-                                  <span className="text-[9px] bg-purple-100 text-purple-700 px-1 rounded font-black">D2</span>
-                                </div>
-                              </td>
-                              {fullStats.map(s => (
-                                <td key={s.condition} className="px-4 py-2 text-center border-r border-slate-100 last:border-0">
-                                  <span className="font-mono text-slate-700 font-bold">{s.genes[gene]?.antisense?.tpmMean.toFixed(2)}</span>
-                                  <div className="text-[9px] text-slate-400">Reads: {Math.round(s.genes[gene]?.antisense?.countMean || 0)}</div>
-                                </td>
-                              ))}
+                              <td className="px-4 py-2 border-r border-slate-100 bg-slate-50/20"><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-slate-300" /><span className="font-bold text-slate-800 truncate max-w-[100px]">{annotations[gene]?.geneName || gene}</span><span className="text-[9px] bg-purple-100 text-purple-700 px-1 rounded font-black">D2</span></div></td>
+                              {fullStats.map(s => <td key={s.condition} className="px-4 py-2 text-center border-r border-slate-100 last:border-0"><span className="font-mono text-slate-700 font-bold">{s.genes[gene]?.antisense?.tpmMean.toFixed(2) || '0.00'}</span><div className="text-[9px] text-slate-400">Reads: {Math.round(s.genes[gene]?.antisense?.countMean || 0)}</div></td>)}
                             </tr>
                           )}
                         </React.Fragment>
@@ -553,8 +503,8 @@ const App = () => {
                 <div className="p-4 bg-slate-50 border-t border-slate-200 text-[10px] text-slate-500">
                     <p className="font-bold mb-1 uppercase tracking-wider text-slate-400 text-[9px]">Dataset Map</p>
                     <div className="flex gap-6">
-                        <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-blue-400" /> <b>D1 (Sense):</b> {fileData.sense?.sampleCols?.[0] || 'Manual Upload'} group</span>
-                        {fileData.antisense && <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-purple-400" /> <b>D2 (Antisense):</b> {fileData.antisense?.sampleCols?.[0] || 'Manual Upload'} group</span>}
+                        <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-blue-400" /> <b>D1:</b> {fileData.sense?.sampleCols?.[0] || 'Manual Upload'}</span>
+                        {fileData.antisense && <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-purple-400" /> <b>D2:</b> {fileData.antisense?.sampleCols?.[0] || 'Manual Upload'}</span>}
                     </div>
                 </div>
               </div>
