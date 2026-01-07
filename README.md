@@ -6,7 +6,7 @@ An interactive web-based platform for the reanalysis of the _Sorangium_ sp. So c
 - Detect and quantify defense system activity during the growth curve
 - Analyze transcriptome-wide potential antisense regulation in _Sorangium_ sp. So ce836
 - Track expression shifts across experimental timepoints in log_2(TPM + 1) units.
-**Access the live browser here: https://VicenteBR.github.io/Boldt-et-al-2022-reanalysis/**
+**Access the live browser here: https://VicenteBR.github.io/Boldt-et-al-2023-reanalysis/**
 
 **Dual Precomputed Loaders:**
 - Reanalysis: Loads global sense/antisense counts and full annotation.
